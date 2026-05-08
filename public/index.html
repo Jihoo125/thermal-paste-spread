@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thermal Grease Spread Simulator</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <button id="themeToggleBtn" class="theme-toggle" aria-label="Toggle dark and light mode" title="Toggle theme">
+      ○
+    </button>
+    <main class="layout">
+      <section class="panel">
+        <h1>Thermal Grease Spread Simulator</h1>
+        <p>
+          Hold left mouse button and move to paint grease. The simulation smooths and spreads over time.
+        </p>
+
+        <label for="socketSelect">Socket Size</label>
+        <select id="socketSelect"></select>
+
+        <label for="patternSelect">Pattern Brush</label>
+        <select id="patternSelect">
+          <option value="dot">Dot Brush</option>
+          <option value="line">Line Brush</option>
+          <option value="x">X Brush</option>
+          <option value="square">Square Brush</option>
+          <option value="ring">Ring Brush</option>
+          <option value="plus">Plus Brush</option>
+          <option value="star">Star Brush</option>
+          <option value="spray">Spray Brush</option>
+          <option value="spiral">Spiral Brush</option>
+        </select>
+
+        <label for="brushSize">Brush Size</label>
+        <div class="control-row">
+          <input id="brushSize" type="range" min="2" max="30" value="10" />
+          <input id="brushSizeNumber" type="number" min="2" max="30" step="1" value="10" />
+        </div>
+
+        <label for="viscosity">Viscosity</label>
+        <div class="control-row">
+          <input id="viscosity" type="range" min="0.05" max="0.9" step="0.01" value="0.35" />
+          <input id="viscosityNumber" type="number" min="0.05" max="0.9" step="0.01" value="0.35" />
+        </div>
+
+        <label for="pressure">Cooler Pressure</label>
+        <div class="control-row">
+          <input id="pressure" type="range" min="0.05" max="1.5" step="0.01" value="0.55" />
+          <input id="pressureNumber" type="number" min="0.05" max="1.5" step="0.01" value="0.55" />
+        </div>
+
+        <label for="tps">TPS (Ticks Per Second)</label>
+        <div class="control-row">
+          <input id="tps" type="range" min="10" max="240" step="1" value="60" />
+          <input id="tpsNumber" type="number" min="10" max="240" step="1" value="60" />
+        </div>
+
+        <div class="actions">
+          <button id="clearBtn">Clear</button>
+          <button id="centerDropBtn">Add Center Drop</button>
+          <button id="resetOptionsBtn">Reset Options</button>
+        </div>
+      </section>
+
+      <section class="sim-wrap">
+        <canvas id="simCanvas" width="940" height="640"></canvas>
+      </section>
+    </main>
+
+    <script src="./sim.js"></script>
+  </body>
+</html>

@@ -1,0 +1,160 @@
+:root {
+  --bg: #111820;
+  --panel: #1a2530;
+  --ink: #dce6f0;
+  --subtle: #8fa2b5;
+  --accent: #6dd3ce;
+  --cpu: #202a35;
+  --cpu-border: #4d5f73;
+  --canvas-bg: #0f1822;
+  --field-bg: #0f1822;
+  --field-border: #34475b;
+}
+
+body.light {
+  --bg: #eef4fb;
+  --panel: #ffffff;
+  --ink: #162331;
+  --subtle: #5a6e80;
+  --accent: #167a93;
+  --cpu: #d4deea;
+  --cpu-border: #748ba2;
+  --canvas-bg: #e8f0fa;
+  --field-bg: #ffffff;
+  --field-border: #9cb2c7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: radial-gradient(1200px 700px at 70% -10%, #213246 0%, var(--bg) 60%);
+  color: var(--ink);
+}
+
+.theme-toggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--field-border);
+  background: var(--field-bg);
+  color: var(--ink);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 20;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 18px;
+  padding: 18px;
+  min-height: 100vh;
+}
+
+.panel {
+  background: linear-gradient(180deg, #1f2b39 0%, var(--panel) 100%);
+  border: 1px solid #2f4256;
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+body.light .panel {
+  background: var(--panel);
+  border-color: #c8d6e5;
+}
+
+h1 {
+  margin: 0 0 6px 0;
+  font-size: 1.25rem;
+}
+
+p {
+  margin: 0 0 10px 0;
+  color: var(--subtle);
+  line-height: 1.35;
+}
+
+label {
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+select,
+input[type="range"],
+input[type="number"],
+button {
+  width: 100%;
+}
+
+select,
+input[type="number"],
+button {
+  background: var(--field-bg);
+  color: var(--ink);
+  border: 1px solid var(--field-border);
+  border-radius: 9px;
+  padding: 8px 9px;
+}
+
+.control-row {
+  display: grid;
+  grid-template-columns: 1fr 92px;
+  gap: 8px;
+  align-items: center;
+}
+
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
+span {
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.sim-wrap {
+  border: 1px solid #2f4256;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--canvas-bg);
+  min-height: 420px;
+}
+
+#simCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+@media (max-width: 980px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .panel {
+    order: 2;
+  }
+
+  .sim-wrap {
+    order: 1;
+    min-height: 56vh;
+  }
+}
