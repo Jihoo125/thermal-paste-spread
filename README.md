@@ -1,45 +1,92 @@
 # Thermal Grease Spread Simulator (Node.js)
 
-Web-deployable simulation of thermal paste spreading over CPU socket surfaces with selectable package sizes:
+A web-deployable CPU thermal paste simulation built with Node.js and Canvas.
 
-- Socket M
-- Socket P
-- LGA1150
-- LGA1151
-- LGA1700
-- LGA1851
-- AM3
-- AM4
-- AM5
+This project lets you apply thermal grease with interactive brush patterns and watch it spread smoothly across many CPU socket/package footprints.
 
-The simulation includes:
+## Features
 
-- Smooth diffusion-based spreading
-- Adjustable viscosity and cooler pressure
-- Mouse painting while holding left click and moving
-- Brush pattern options (`Dot`, `Line`, `X`, `Square`)
-- Real package-size mapping (mm) for modern documented sockets; legacy undocumented entries use conservative defaults
+- Mouse-drag paste application (hold left click and move).
+- Multiple brush patterns:
+  - `Dot`, `Line`, `X`, `Square`
+  - `Ring`, `Plus`, `Star`, `Spray`, `Spiral`
+- Large socket list with duplicate-safe loading.
+- Exact size mapping (mm) for defined sockets in code.
+- Smooth diffusion-based spread simulation.
+- Adjustable simulation and material controls:
+  - Brush Size
+  - Viscosity
+  - Cooler Pressure
+  - TPS (Ticks Per Second)
+- Utility controls:
+  - `Clear`
+  - `Add Center Drop`
+  - `Reset Options`
+- Theme toggle:
+  - Round top-right dark/light mode button.
+- Paste does not automatically disappear over time.
 
-## Run locally
+## Quickstart
 
-1. Install Node.js 18+.
-2. Install dependencies:
+### Requirements
+
+- Node.js 18+ (recommended)
+- npm
+
+### Run Locally
+
+```bash
+npm install
+npm start
+```
+
+Then open:
+
+- `http://localhost:3000`
+
+## Controls Reference
+
+| Control | Type | Range / Options | Behavior |
+|---|---|---|---|
+| Socket Size | Select | Full preset list | Changes CPU footprint used for spread boundary. |
+| Pattern Brush | Select | `Dot`, `Line`, `X`, `Square`, `Ring`, `Plus`, `Star`, `Spray`, `Spiral` | Changes paste application pattern while drawing. |
+| Brush Size | Slider + Number | `2-30` | Controls brush radius/coverage. |
+| Viscosity | Slider + Number | `0.05-0.9` | Higher values resist spread more. |
+| Cooler Pressure | Slider + Number | `0.05-1.5` | Higher values increase spread intensity. |
+| TPS | Slider + Number | `10-240` | Simulation tick rate (update speed). |
+| Clear | Button | N/A | Removes all current paste from the surface. |
+| Add Center Drop | Button | N/A | Adds a concentrated paste drop at center. |
+| Reset Options | Button | N/A | Resets socket/brush/options to defaults. |
+| Theme Toggle | Round Button (top-right) | Dark / Light | Switches UI theme. |
+
+## Socket Sizing Policy
+
+- Socket names are loaded from a predefined list and deduplicated before rendering in the selector.
+- Size mapping uses an exact table (`const exact`) in `public/sim.js` when a socket is defined there.
+- If a socket name is not found in the exact map, the simulator falls back to:
+  - `37.5 x 37.5 mm`
+
+## Runtime Interface
+
+- Entrypoint: `npm start`
+- Server: `server.js` (Express static hosting)
+- Default URL: `http://localhost:3000`
+
+## Deployment
+
+Deploy on any Node.js host (Render, Railway, Fly.io, VPS, etc.).
+
+- Install/build step:
 
 ```bash
 npm install
 ```
 
-3. Start server:
+- Start command:
 
 ```bash
 npm start
 ```
 
-4. Open `http://localhost:3000`.
+The server uses `PORT` when provided by the platform.
 
-## Deploy
-
-Any Node-friendly host works (Render, Railway, Fly.io, etc.).
-
-- Build step: `npm install`
-- Start command: `npm start`
