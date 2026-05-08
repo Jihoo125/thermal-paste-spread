@@ -1,0 +1,20 @@
+{
+  "name": "thermal-grease-sim",
+  "version": "1.0.0",
+  "description": "Web-deployable Node.js simulation of thermal grease spread across CPU socket sizes.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "nodejs",
+    "simulation",
+    "thermal-grease",
+    "cpu"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
