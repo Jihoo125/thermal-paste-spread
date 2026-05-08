@@ -10,9 +10,13 @@ This project lets you apply thermal grease with interactive brush patterns and w
 - Multiple brush patterns:
   - `Dot`, `Line`, `X`, `Square`
   - `Ring`, `Plus`, `Star`, `Spray`, `Spiral`
+- Preset drop applications:
+  - `Center Pea`, `Center Line`, `X Pattern`
+  - `5-Dot`, `4 Corners`, `Full Spread`
 - Large socket list with duplicate-safe loading.
 - Exact size mapping (mm) for defined sockets in code.
 - Smooth diffusion-based spread simulation.
+- Boundary-aware spread with overspread detection.
 - Adjustable simulation and material controls:
   - Brush Size
   - Viscosity
@@ -21,10 +25,12 @@ This project lets you apply thermal grease with interactive brush patterns and w
 - Utility controls:
   - `Clear`
   - `Add Center Drop`
+  - `Apply Preset Drop`
   - `Reset Options`
 - Theme toggle:
   - Round top-right dark/light mode button.
 - Paste does not automatically disappear over time.
+- Red overspread alert when paste extends beyond CPU boundary.
 
 ## Quickstart
 
@@ -50,14 +56,17 @@ Then open:
 |---|---|---|---|
 | Socket Size | Select | Full preset list | Changes CPU footprint used for spread boundary. |
 | Pattern Brush | Select | `Dot`, `Line`, `X`, `Square`, `Ring`, `Plus`, `Star`, `Spray`, `Spiral` | Changes paste application pattern while drawing. |
+| Preset Drop | Select | `Center Pea`, `Center Line`, `X Pattern`, `5-Dot`, `4 Corners`, `Full Spread` | Chooses a one-click paste application layout. |
 | Brush Size | Slider + Number | `2-30` | Controls brush radius/coverage. |
 | Viscosity | Slider + Number | `0.05-0.9` | Higher values resist spread more. |
 | Cooler Pressure | Slider + Number | `0.05-1.5` | Higher values increase spread intensity. |
 | TPS | Slider + Number | `10-240` | Simulation tick rate (update speed). |
 | Clear | Button | N/A | Removes all current paste from the surface. |
 | Add Center Drop | Button | N/A | Adds a concentrated paste drop at center. |
+| Apply Preset Drop | Button | N/A | Applies the currently selected preset drop pattern. |
 | Reset Options | Button | N/A | Resets socket/brush/options to defaults. |
 | Theme Toggle | Round Button (top-right) | Dark / Light | Switches UI theme. |
+| Overspread Alert | Live status badge | Auto | Shows red warning when paste is detected beyond CPU boundary. |
 
 ## Socket Sizing Policy
 
@@ -89,4 +98,3 @@ npm start
 ```
 
 The server uses `PORT` when provided by the platform.
-
