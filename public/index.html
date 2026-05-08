@@ -33,6 +33,16 @@
           <option value="spiral">Spiral Brush</option>
         </select>
 
+        <label for="presetDropSelect">Preset Drop</label>
+        <select id="presetDropSelect">
+          <option value="centerPea">Center Pea</option>
+          <option value="line">Center Line</option>
+          <option value="x">X Pattern</option>
+          <option value="fiveDot">5-Dot</option>
+          <option value="corners">4 Corners</option>
+          <option value="fullSpread">Full Spread</option>
+        </select>
+
         <label for="brushSize">Brush Size</label>
         <div class="control-row">
           <input id="brushSize" type="range" min="2" max="30" value="10" />
@@ -60,11 +70,13 @@
         <div class="actions">
           <button id="clearBtn">Clear</button>
           <button id="centerDropBtn">Add Center Drop</button>
+          <button id="applyPresetBtn">Apply Preset Drop</button>
           <button id="resetOptionsBtn">Reset Options</button>
         </div>
       </section>
 
       <section class="sim-wrap">
+        <div id="overspreadAlert" class="overspread-alert" aria-live="polite">OVERSPREAD ALERT: Thermal paste is beyond CPU boundary</div>
         <canvas id="simCanvas" width="940" height="640"></canvas>
       </section>
     </main>
