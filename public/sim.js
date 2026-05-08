@@ -198,3 +198,606 @@ const canvas = document.getElementById("simCanvas");
 const ctx = canvas.getContext("2d");
 
 const socketSelect = document.getElementById("socketSelect");
+const patternSelect = document.getElementById("patternSelect");
+const presetDropSelect = document.getElementById("presetDropSelect");
+const brushSizeInput = document.getElementById("brushSize");
+const brushSizeNumberInput = document.getElementById("brushSizeNumber");
+const viscosityInput = document.getElementById("viscosity");
+const viscosityNumberInput = document.getElementById("viscosityNumber");
+const pressureInput = document.getElementById("pressure");
+const pressureNumberInput = document.getElementById("pressureNumber");
+const tpsInput = document.getElementById("tps");
+const tpsNumberInput = document.getElementById("tpsNumber");
+const clearBtn = document.getElementById("clearBtn");
+const centerDropBtn = document.getElementById("centerDropBtn");
+const applyPresetBtn = document.getElementById("applyPresetBtn");
+const resetOptionsBtn = document.getElementById("resetOptionsBtn");
+const themeToggleBtn = document.getElementById("themeToggleBtn");
+const overspreadAlert = document.getElementById("overspreadAlert");
+
+const defaultOptions = {
+  socketName: "Socket 1700",
+  brushPattern: "dot",
+  brushSize: 10,
+  viscosity: 0.35,
+  pressure: 0.55,
+  tps: 60
+};
+
+const sim = {
+  cols: 180,
+  rows: 122,
+  grease: [],
+  nextGrease: [],
+  socketMask: [],
+  isDrawing: false,
+  pointerX: 0,
+  pointerY: 0,
+  prevPointerX: 0,
+  prevPointerY: 0,
+  brushSize: Number(brushSizeInput.value),
+  viscosity: Number(viscosityInput.value),
+  pressure: Number(pressureInput.value),
+  tps: Number(tpsInput.value),
+  accumulatorMs: 0,
+  lastTimeMs: 0,
+  selectedSocket: socketData.find((s) => s.name === "Socket 1700") || socketData[0]
+};
+
+const BASE_TPS = 60;
+
+function initArrays() {
+  const total = sim.cols * sim.rows;
+  sim.grease = new Float32Array(total);
+  sim.nextGrease = new Float32Array(total);
+  sim.socketMask = new Uint8Array(total);
+}
+
+function indexAt(x, y) {
+  return y * sim.cols + x;
+}
+
+function toGrid(canvasX, canvasY) {
+  const x = Math.max(0, Math.min(sim.cols - 1, Math.floor((canvasX / canvas.width) * sim.cols)));
+  const y = Math.max(0, Math.min(sim.rows - 1, Math.floor((canvasY / canvas.height) * sim.rows)));
+  return { x, y };
+}
+
+function setSocketMask(socket) {
+  sim.selectedSocket = socket;
+  sim.socketMask.fill(0);
+  sim.grease.fill(0);
+
+  const scale = Math.min(sim.cols / 56, sim.rows / 56);
+  const w = Math.max(12, Math.floor(socket.w * scale));
+  const h = Math.max(12, Math.floor(socket.h * scale));
+  const cx = Math.floor(sim.cols / 2);
+  const cy = Math.floor(sim.rows / 2);
+  const x0 = Math.floor(cx - w / 2);
+  const y0 = Math.floor(cy - h / 2);
+
+  for (let y = 0; y < sim.rows; y += 1) {
+    for (let x = 0; x < sim.cols; x += 1) {
+      const inside = x >= x0 && x < x0 + w && y >= y0 && y < y0 + h;
+      sim.socketMask[indexAt(x, y)] = inside ? 1 : 0;
+    }
+  }
+}
+
+function addGreaseDot(gx, gy, radius, strength = 1) {
+  const r2 = radius * radius;
+  const xStart = Math.max(0, gx - radius);
+  const xEnd = Math.min(sim.cols - 1, gx + radius);
+  const yStart = Math.max(0, gy - radius);
+  const yEnd = Math.min(sim.rows - 1, gy + radius);
+
+  for (let y = yStart; y <= yEnd; y += 1) {
+    for (let x = xStart; x <= xEnd; x += 1) {
+      const dx = x - gx;
+      const dy = y - gy;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > r2) continue;
+      const idx = indexAt(x, y);
+      if (sim.socketMask[idx] === 0) continue;
+      const falloff = 1 - d2 / r2;
+      sim.grease[idx] = Math.min(1, sim.grease[idx] + falloff * 0.12 * strength);
+    }
+  }
+}
+
+function addGreaseLine(x1, y1, x2, y2, radius, strength = 1) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const dist = Math.max(1, Math.hypot(dx, dy));
+  const steps = Math.ceil(dist);
+  for (let i = 0; i <= steps; i += 1) {
+    const t = i / steps;
+    const x = Math.round(x1 + dx * t);
+    const y = Math.round(y1 + dy * t);
+    addGreaseDot(x, y, radius, strength);
+  }
+}
+
+function applyPresetDrop(type) {
+  const cx = Math.floor(sim.cols / 2);
+  const cy = Math.floor(sim.rows / 2);
+  const r = Math.max(3, Math.floor(sim.brushSize * 0.85));
+  const ox = Math.max(5, Math.floor(sim.brushSize * 1.5));
+  const oy = Math.max(5, Math.floor(sim.brushSize * 1.2));
+
+  if (type === "centerPea") {
+    addGreaseDot(cx, cy, r + 2, 2.1);
+    return;
+  }
+  if (type === "line") {
+    addGreaseLine(cx - ox * 2, cy, cx + ox * 2, cy, Math.max(2, Math.floor(r * 0.55)), 1.5);
+    return;
+  }
+  if (type === "x") {
+    addGreaseLine(cx - ox * 2, cy - oy * 2, cx + ox * 2, cy + oy * 2, Math.max(2, Math.floor(r * 0.45)), 1.3);
+    addGreaseLine(cx - ox * 2, cy + oy * 2, cx + ox * 2, cy - oy * 2, Math.max(2, Math.floor(r * 0.45)), 1.3);
+    return;
+  }
+  if (type === "fiveDot") {
+    addGreaseDot(cx, cy, r, 1.9);
+    addGreaseDot(cx - ox, cy - oy, Math.max(2, Math.floor(r * 0.72)), 1.4);
+    addGreaseDot(cx + ox, cy - oy, Math.max(2, Math.floor(r * 0.72)), 1.4);
+    addGreaseDot(cx - ox, cy + oy, Math.max(2, Math.floor(r * 0.72)), 1.4);
+    addGreaseDot(cx + ox, cy + oy, Math.max(2, Math.floor(r * 0.72)), 1.4);
+    return;
+  }
+  if (type === "corners") {
+    addGreaseDot(cx - ox * 2, cy - oy * 2, Math.max(2, Math.floor(r * 0.75)), 1.4);
+    addGreaseDot(cx + ox * 2, cy - oy * 2, Math.max(2, Math.floor(r * 0.75)), 1.4);
+    addGreaseDot(cx - ox * 2, cy + oy * 2, Math.max(2, Math.floor(r * 0.75)), 1.4);
+    addGreaseDot(cx + ox * 2, cy + oy * 2, Math.max(2, Math.floor(r * 0.75)), 1.4);
+    return;
+  }
+  if (type === "fullSpread") {
+    for (let y = 0; y < sim.rows; y += 3) {
+      for (let x = 0; x < sim.cols; x += 3) {
+        if (sim.socketMask[indexAt(x, y)] === 1) {
+          sim.grease[indexAt(x, y)] = Math.min(1, sim.grease[indexAt(x, y)] + 0.28);
+        }
+      }
+    }
+  }
+}
+
+function addBrushPattern(gx, gy, prevX, prevY) {
+  const radius = sim.brushSize;
+  const pattern = patternSelect.value;
+
+  if (pattern === "dot") {
+    addGreaseDot(gx, gy, radius, 1.25);
+    return;
+  }
+
+  if (pattern === "ring") {
+    const inner = Math.max(1, Math.floor(radius * 0.65));
+    for (let y = gy - radius; y <= gy + radius; y += 1) {
+      for (let x = gx - radius; x <= gx + radius; x += 1) {
+        if (x < 0 || x >= sim.cols || y < 0 || y >= sim.rows) continue;
+        const dx = x - gx;
+        const dy = y - gy;
+        const d = Math.hypot(dx, dy);
+        if (d <= radius && d >= inner) {
+          const idx = indexAt(x, y);
+          if (sim.socketMask[idx]) sim.grease[idx] = Math.min(1, sim.grease[idx] + 0.16);
+        }
+      }
+    }
+    return;
+  }
+
+  if (pattern === "square") {
+    for (let y = gy - radius; y <= gy + radius; y += 1) {
+      for (let x = gx - radius; x <= gx + radius; x += 1) {
+        if (x < 0 || x >= sim.cols || y < 0 || y >= sim.rows) continue;
+        const idx = indexAt(x, y);
+        if (sim.socketMask[idx]) {
+          sim.grease[idx] = Math.min(1, sim.grease[idx] + 0.1);
+        }
+      }
+    }
+    return;
+  }
+
+  if (pattern === "x") {
+    for (let i = -radius; i <= radius; i += 1) {
+      const aX = gx + i;
+      const aY = gy + i;
+      const bX = gx + i;
+      const bY = gy - i;
+      if (aX >= 0 && aX < sim.cols && aY >= 0 && aY < sim.rows) {
+        const idx = indexAt(aX, aY);
+        if (sim.socketMask[idx]) sim.grease[idx] = Math.min(1, sim.grease[idx] + 0.2);
+      }
+      if (bX >= 0 && bX < sim.cols && bY >= 0 && bY < sim.rows) {
+        const idx = indexAt(bX, bY);
+        if (sim.socketMask[idx]) sim.grease[idx] = Math.min(1, sim.grease[idx] + 0.2);
+      }
+    }
+    addGreaseDot(gx, gy, Math.max(2, Math.floor(radius * 0.35)), 1);
+    return;
+  }
+
+  if (pattern === "plus") {
+    for (let i = -radius; i <= radius; i += 1) {
+      const hX = gx + i;
+      const hY = gy;
+      const vX = gx;
+      const vY = gy + i;
+      if (hX >= 0 && hX < sim.cols && hY >= 0 && hY < sim.rows) {
+        const idx = indexAt(hX, hY);
+        if (sim.socketMask[idx]) sim.grease[idx] = Math.min(1, sim.grease[idx] + 0.18);
+      }
+      if (vX >= 0 && vX < sim.cols && vY >= 0 && vY < sim.rows) {
+        const idx = indexAt(vX, vY);
+        if (sim.socketMask[idx]) sim.grease[idx] = Math.min(1, sim.grease[idx] + 0.18);
+      }
+    }
+    return;
+  }
+
+  if (pattern === "star") {
+    for (let i = -radius; i <= radius; i += 1) {
+      const points = [
+        [gx + i, gy],
+        [gx, gy + i],
+        [gx + i, gy + i],
+        [gx + i, gy - i]
+      ];
+      for (const [px, py] of points) {
+        if (px >= 0 && px < sim.cols && py >= 0 && py < sim.rows) {
+          const idx = indexAt(px, py);
+          if (sim.socketMask[idx]) sim.grease[idx] = Math.min(1, sim.grease[idx] + 0.14);
+        }
+      }
+    }
+    addGreaseDot(gx, gy, Math.max(2, Math.floor(radius * 0.25)), 1);
+    return;
+  }
+
+  if (pattern === "spray") {
+    const points = Math.max(20, Math.floor(radius * 10));
+    for (let i = 0; i < points; i += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * radius;
+      const sx = Math.round(gx + Math.cos(angle) * dist);
+      const sy = Math.round(gy + Math.sin(angle) * dist);
+      if (sx < 0 || sx >= sim.cols || sy < 0 || sy >= sim.rows) continue;
+      const idx = indexAt(sx, sy);
+      if (sim.socketMask[idx]) sim.grease[idx] = Math.min(1, sim.grease[idx] + 0.07);
+    }
+    return;
+  }
+
+  if (pattern === "spiral") {
+    const turns = 3.5;
+    const steps = Math.max(24, radius * 8);
+    for (let i = 0; i <= steps; i += 1) {
+      const t = i / steps;
+      const angle = t * turns * Math.PI * 2;
+      const dist = t * radius;
+      const sx = Math.round(gx + Math.cos(angle) * dist);
+      const sy = Math.round(gy + Math.sin(angle) * dist);
+      if (sx < 0 || sx >= sim.cols || sy < 0 || sy >= sim.rows) continue;
+      const idx = indexAt(sx, sy);
+      if (sim.socketMask[idx]) sim.grease[idx] = Math.min(1, sim.grease[idx] + 0.13);
+    }
+    return;
+  }
+
+  if (pattern === "line") {
+    const dx = gx - prevX;
+    const dy = gy - prevY;
+    const dist = Math.max(1, Math.hypot(dx, dy));
+    const steps = Math.ceil(dist);
+    for (let i = 0; i <= steps; i += 1) {
+      const t = i / steps;
+      const sx = Math.round(prevX + dx * t);
+      const sy = Math.round(prevY + dy * t);
+      addGreaseDot(sx, sy, Math.max(2, Math.floor(radius * 0.55)), 1.1);
+    }
+  }
+}
+
+function diffuseGrease() {
+  const speedScale = sim.tps / BASE_TPS;
+  const spreadRate = (0.02 + sim.pressure * 0.05) * speedScale;
+  const retention = 1;
+
+  for (let y = 1; y < sim.rows - 1; y += 1) {
+    for (let x = 1; x < sim.cols - 1; x += 1) {
+      const idx = indexAt(x, y);
+      const center = sim.grease[idx];
+      const n = sim.grease[indexAt(x, y - 1)];
+      const s = sim.grease[indexAt(x, y + 1)];
+      const e = sim.grease[indexAt(x + 1, y)];
+      const w = sim.grease[indexAt(x - 1, y)];
+
+      const lap = n + s + e + w - 4 * center;
+      let next = center + spreadRate * lap;
+
+      if (sim.socketMask[idx] === 0) {
+        next *= 0.995;
+      }
+
+      next *= retention;
+      if (next < 0.0002) next = 0;
+      if (next > 1) next = 1;
+      sim.nextGrease[idx] = next;
+    }
+  }
+
+  const tmp = sim.grease;
+  sim.grease = sim.nextGrease;
+  sim.nextGrease = tmp;
+}
+
+function updateOverspreadAlert() {
+  let overspread = false;
+  for (let i = 0; i < sim.grease.length; i += 1) {
+    if (sim.socketMask[i] === 0 && sim.grease[i] > 0.02) {
+      overspread = true;
+      break;
+    }
+  }
+  overspreadAlert.classList.toggle("visible", overspread);
+}
+
+function drawScene() {
+  const style = getComputedStyle(document.body);
+  const canvasBg = style.getPropertyValue("--canvas-bg").trim() || "#0f1822";
+  const cpuBg = style.getPropertyValue("--cpu").trim() || "#202a35";
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = canvasBg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const cw = canvas.width / sim.cols;
+  const ch = canvas.height / sim.rows;
+
+  for (let y = 0; y < sim.rows; y += 1) {
+    for (let x = 0; x < sim.cols; x += 1) {
+      const idx = indexAt(x, y);
+
+      if (sim.socketMask[idx]) {
+        ctx.fillStyle = cpuBg;
+      } else {
+        ctx.fillStyle = canvasBg;
+      }
+      ctx.fillRect(x * cw, y * ch, cw + 0.5, ch + 0.5);
+
+      const amount = sim.grease[idx];
+      if (amount > 0) {
+        const alpha = Math.min(0.92, 0.16 + amount * 0.85);
+        const shade = Math.floor(182 + amount * 52);
+        ctx.fillStyle = `rgba(${shade}, ${shade}, ${shade}, ${alpha})`;
+        ctx.fillRect(x * cw, y * ch, cw + 0.5, ch + 0.5);
+      }
+    }
+  }
+
+  drawSocketBorder(cw, ch);
+  updateOverspreadAlert();
+}
+
+function drawSocketBorder(cw, ch) {
+  const style = getComputedStyle(document.body);
+  const border = style.getPropertyValue("--cpu-border").trim() || "#6b7f94";
+  let minX = sim.cols;
+  let minY = sim.rows;
+  let maxX = 0;
+  let maxY = 0;
+
+  for (let y = 0; y < sim.rows; y += 1) {
+    for (let x = 0; x < sim.cols; x += 1) {
+      const idx = indexAt(x, y);
+      if (sim.socketMask[idx]) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(minX * cw, minY * ch, (maxX - minX + 1) * cw, (maxY - minY + 1) * ch);
+}
+
+function syncThemeButton() {
+  const isLight = document.body.classList.contains("light");
+  themeToggleBtn.textContent = isLight ? "◐" : "○";
+}
+
+function animationLoop(nowMs) {
+  if (typeof nowMs !== "number") {
+    requestAnimationFrame(animationLoop);
+    return;
+  }
+  if (!sim.lastTimeMs) sim.lastTimeMs = nowMs;
+  const frameDelta = Math.min(100, nowMs - sim.lastTimeMs);
+  sim.lastTimeMs = nowMs;
+  sim.accumulatorMs += frameDelta;
+  const tickMs = 1000 / sim.tps;
+
+  while (sim.accumulatorMs >= tickMs) {
+    if (sim.isDrawing) {
+      addBrushPattern(sim.pointerX, sim.pointerY, sim.prevPointerX, sim.prevPointerY);
+      sim.prevPointerX = sim.pointerX;
+      sim.prevPointerY = sim.pointerY;
+    }
+    diffuseGrease();
+    sim.accumulatorMs -= tickMs;
+  }
+
+  drawScene();
+  requestAnimationFrame(animationLoop);
+}
+
+function onPointerDown(e) {
+  if (e.button !== 0) return;
+  const rect = canvas.getBoundingClientRect();
+  const localX = e.clientX - rect.left;
+  const localY = e.clientY - rect.top;
+  const grid = toGrid(localX, localY);
+  sim.isDrawing = true;
+  sim.pointerX = grid.x;
+  sim.pointerY = grid.y;
+  sim.prevPointerX = grid.x;
+  sim.prevPointerY = grid.y;
+  addBrushPattern(grid.x, grid.y, grid.x, grid.y);
+}
+
+function onPointerMove(e) {
+  if (!sim.isDrawing) return;
+  const rect = canvas.getBoundingClientRect();
+  const localX = e.clientX - rect.left;
+  const localY = e.clientY - rect.top;
+  const grid = toGrid(localX, localY);
+  sim.pointerX = grid.x;
+  sim.pointerY = grid.y;
+}
+
+function onPointerUp() {
+  sim.isDrawing = false;
+}
+
+function resizeCanvas() {
+  const parent = canvas.parentElement;
+  const w = parent.clientWidth;
+  const h = parent.clientHeight;
+  canvas.width = Math.max(640, Math.floor(w));
+  canvas.height = Math.max(420, Math.floor(h));
+}
+
+function setupUI() {
+  for (const socket of socketData) {
+    const option = document.createElement("option");
+    option.value = socket.id;
+    option.textContent = `${socket.name} (${socket.w} x ${socket.h} mm)`;
+    socketSelect.appendChild(option);
+  }
+  socketSelect.value = sim.selectedSocket.id;
+  patternSelect.value = defaultOptions.brushPattern;
+
+  socketSelect.addEventListener("change", () => {
+    const next = socketData.find((s) => s.id === socketSelect.value) || socketData[0];
+    setSocketMask(next);
+  });
+
+  brushSizeInput.addEventListener("input", () => {
+    sim.brushSize = Number(brushSizeInput.value);
+    brushSizeNumberInput.value = brushSizeInput.value;
+  });
+  brushSizeNumberInput.addEventListener("input", () => {
+    const next = Number(brushSizeNumberInput.value);
+    if (Number.isNaN(next)) return;
+    const clamped = Math.max(2, Math.min(30, Math.round(next)));
+    sim.brushSize = clamped;
+    brushSizeInput.value = String(clamped);
+    brushSizeNumberInput.value = String(clamped);
+  });
+
+  viscosityInput.addEventListener("input", () => {
+    sim.viscosity = Number(viscosityInput.value);
+    viscosityNumberInput.value = viscosityInput.value;
+  });
+  viscosityNumberInput.addEventListener("input", () => {
+    const next = Number(viscosityNumberInput.value);
+    if (Number.isNaN(next)) return;
+    const clamped = Math.max(0.05, Math.min(0.9, next));
+    sim.viscosity = clamped;
+    viscosityInput.value = clamped.toFixed(2);
+    viscosityNumberInput.value = clamped.toFixed(2);
+  });
+
+  pressureInput.addEventListener("input", () => {
+    sim.pressure = Number(pressureInput.value);
+    pressureNumberInput.value = pressureInput.value;
+  });
+  pressureNumberInput.addEventListener("input", () => {
+    const next = Number(pressureNumberInput.value);
+    if (Number.isNaN(next)) return;
+    const clamped = Math.max(0.05, Math.min(1.5, next));
+    sim.pressure = clamped;
+    pressureInput.value = clamped.toFixed(2);
+    pressureNumberInput.value = clamped.toFixed(2);
+  });
+
+  tpsInput.addEventListener("input", () => {
+    sim.tps = Number(tpsInput.value);
+    tpsNumberInput.value = tpsInput.value;
+  });
+  tpsNumberInput.addEventListener("input", () => {
+    const next = Number(tpsNumberInput.value);
+    if (Number.isNaN(next)) return;
+    const clamped = Math.max(10, Math.min(240, Math.round(next)));
+    sim.tps = clamped;
+    tpsInput.value = String(clamped);
+    tpsNumberInput.value = String(clamped);
+  });
+
+  clearBtn.addEventListener("click", () => {
+    sim.grease.fill(0);
+  });
+
+  centerDropBtn.addEventListener("click", () => {
+    addGreaseDot(Math.floor(sim.cols / 2), Math.floor(sim.rows / 2), Math.max(4, sim.brushSize + 4), 1.9);
+  });
+
+  applyPresetBtn.addEventListener("click", () => {
+    applyPresetDrop(presetDropSelect.value);
+  });
+
+  resetOptionsBtn.addEventListener("click", () => {
+    const defaultSocket =
+      socketData.find((s) => s.name === defaultOptions.socketName) || socketData[0];
+    sim.brushSize = defaultOptions.brushSize;
+    sim.viscosity = defaultOptions.viscosity;
+    sim.pressure = defaultOptions.pressure;
+    sim.tps = defaultOptions.tps;
+
+    socketSelect.value = defaultSocket.id;
+    patternSelect.value = defaultOptions.brushPattern;
+
+    brushSizeInput.value = String(defaultOptions.brushSize);
+    brushSizeNumberInput.value = String(defaultOptions.brushSize);
+    viscosityInput.value = defaultOptions.viscosity.toFixed(2);
+    viscosityNumberInput.value = defaultOptions.viscosity.toFixed(2);
+    pressureInput.value = defaultOptions.pressure.toFixed(2);
+    pressureNumberInput.value = defaultOptions.pressure.toFixed(2);
+    tpsInput.value = String(defaultOptions.tps);
+    tpsNumberInput.value = String(defaultOptions.tps);
+
+    setSocketMask(defaultSocket);
+    presetDropSelect.value = "centerPea";
+  });
+
+  themeToggleBtn.addEventListener("click", () => {
+    document.body.classList.toggle("light");
+    syncThemeButton();
+  });
+}
+
+function init() {
+  initArrays();
+  setupUI();
+  resizeCanvas();
+  setSocketMask(sim.selectedSocket);
+  syncThemeButton();
+
+  window.addEventListener("resize", resizeCanvas);
+  canvas.addEventListener("mousedown", onPointerDown);
+  canvas.addEventListener("mousemove", onPointerMove);
+  window.addEventListener("mouseup", onPointerUp);
+  canvas.addEventListener("mouseleave", onPointerUp);
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  requestAnimationFrame(animationLoop);
+}
+
+init();
