@@ -263,14 +263,19 @@ function toGrid(canvasX, canvasY) {
   return { x, y };
 }
 
-function setSocketMask(socket) {
+function setSocketMask(socket, shouldClearGrease = true) {
   sim.selectedSocket = socket;
   sim.socketMask.fill(0);
-  sim.grease.fill(0);
 
-  const scale = Math.min(sim.cols / 56, sim.rows / 56);
-  const w = Math.max(12, Math.floor(socket.w * scale));
-  const h = Math.max(12, Math.floor(socket.h * scale));
+  if (shouldClearGrease) {
+    sim.grease.fill(0);
+  }
+
+  const cellWidth = canvas.width / sim.cols;
+  const cellHeight = canvas.height / sim.rows;
+  const pixelsPerMm = Math.min(canvas.width / 56, canvas.height / 56);
+  const w = Math.max(12, Math.floor((socket.w * pixelsPerMm) / cellWidth));
+  const h = Math.max(12, Math.floor((socket.h * pixelsPerMm) / cellHeight));
   const cx = Math.floor(sim.cols / 2);
   const cy = Math.floor(sim.rows / 2);
   const x0 = Math.floor(cx - w / 2);
@@ -670,8 +675,14 @@ function resizeCanvas() {
   const parent = canvas.parentElement;
   const w = parent.clientWidth;
   const h = parent.clientHeight;
+  const prevWidth = canvas.width;
+  const prevHeight = canvas.height;
   canvas.width = Math.max(640, Math.floor(w));
   canvas.height = Math.max(420, Math.floor(h));
+
+  if (canvas.width !== prevWidth || canvas.height !== prevHeight) {
+    setSocketMask(sim.selectedSocket, false);
+  }
 }
 
 function setupUI() {
